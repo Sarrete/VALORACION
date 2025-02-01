@@ -1,1 +1,34 @@
-index.html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Web para enviar y ver valoraciones de productos o servicios.">
+    <title>Valoraciones</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Deja tu valoración</h1>
+
+        <!-- Formulario de valoración -->
+        <form id="ratingForm">
+            <label for="name">Tu nombre:</label>
+            <input type="text" id="name" required><br><br>
+
+            <label for="rating">Valoración (1-5):</label>
+            <input type="number" id="rating" min="1" max="5" required><br><br>
+
+            <label for="comment">Comentario (opcional):</label>
+            <textarea id="comment"></textarea><br><br>
+
+            <button type="submit">Enviar valoración</button>
+        </form>
+
+        <h2>Valoraciones Recientes</h2>
+        <div id="reviews"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
