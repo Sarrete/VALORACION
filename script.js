@@ -38,7 +38,7 @@ document.getElementById('ratingForm').addEventListener('submit', async function(
 
     // Enviar los datos del formulario a la función de Netlify (backend)
     try {
-        const response = await fetch('/.netlify/functions/guardar-valoracion', {
+        const response = await fetch('/netlify/functions/guardar-valoracion', {
             method: 'POST',
             body: formData,
         });
