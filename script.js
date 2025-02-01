@@ -2,10 +2,16 @@ document.getElementById('ratingForm').addEventListener('submit', async function(
     event.preventDefault();  // Evita que el formulario se recargue al enviarlo
 
     // Obtén los valores del formulario
-    const name = document.getElementById('name').value;
+    const name = document.getElementById('name').value.trim();  // Eliminar espacios en blanco al inicio y final
     const rating = document.querySelector('input[name="rating"]:checked')?.value; // Obtener el valor de las estrellas
     const comment = document.getElementById('comment').value;
     const photo = document.getElementById('photo').files[0]; // Obtener la foto seleccionada
+
+    // Verificar si el nombre está vacío
+    if (!name) {
+        alert('Por favor, ingresa tu nombre.');
+        return;
+    }
 
     // Verificar si se ha seleccionado una valoración
     if (!rating) {
