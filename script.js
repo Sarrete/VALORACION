@@ -23,33 +23,27 @@ document.getElementById('ratingForm').addEventListener('submit', async function(
     const review = {
         name: name,
         rating: rating,
-        comment: comment || 'Sin comentario',  // Si no hay comentario, poner un texto predeterminado
-        photoUrl: photo ? URL.createObjectURL(photo) : null  // Crear una URL para la imagen si se sube una
+        comment: comment || 'Sin comentario',  // Usamos un valor predeterminado si no hay comentario
+        photoUrl: photo ? URL.createObjectURL(photo) : null  // Si hay foto, crear una URL de la imagen
     };
+    
+    console.log('Review object:', review);  // Asegúrate de ver el objeto que estás enviando
 
-    // Crear el FormData para enviar al backend
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('rating', rating);
-    formData.append('comment', comment);
-    if (photo) {
-        formData.append('photo', photo); // Subir la foto si se seleccionó
-    }
-
-    // Enviar los datos del formulario a la función de Netlify (backend)
     try {
+        // Enviar los datos al backend como JSON
         const response = await fetch('/.netlify/functions/guardar-valoracion', {
             method: 'POST',
-            body: formData,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(review),  // Enviar como JSON
         });
 
         const result = await response.json();
 
         if (response.ok) {
-            // Mostrar mensaje de éxito
             alert('Valoración enviada correctamente');
         } else {
-            // Mostrar mensaje de error
             alert('Error al enviar la valoración: ' + result.message);
         }
     } catch (error) {
