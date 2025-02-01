@@ -1,46 +1,66 @@
-document.getElementById('ratingForm').addEventListener('submit', function(event) {
+document.getElementById('ratingForm').addEventListener('submit', async function(event) {
     event.preventDefault();  // Evita que el formulario se recargue al enviarlo
 
     // Obtén los valores del formulario
     const name = document.getElementById('name').value;
-    const rating = document.getElementById('rating').value;
+    const rating = document.querySelector('input[name="rating"]:checked')?.value; // Obtener el valor de las estrellas
     const comment = document.getElementById('comment').value;
+    const photo = document.getElementById('photo').files[0]; // Obtener la foto seleccionada
 
-    // Crea un objeto de valoración
+    // Verificar si se ha seleccionado una valoración
+    if (!rating) {
+        alert('Por favor, selecciona una valoración.');
+        return;
+    }
+
+    // Crear el objeto de valoración
     const review = {
         name: name,
         rating: rating,
-        comment: comment
+        comment: comment || 'Sin comentario',  // Si no hay comentario, poner un texto predeterminado
+        photoUrl: photo ? URL.createObjectURL(photo) : null  // Crear una URL para la imagen si se sube una
     };
 
-    // Almacena la valoración en localStorage (puedes usar un backend más adelante)
-    let reviews = JSON.parse(localStorage.getItem('reviews')) || [];
-    reviews.push(review);
-    localStorage.setItem('reviews', JSON.stringify(reviews));
+    // Crear el FormData para enviar al backend
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('rating', rating);
+    formData.append('comment', comment);
+    if (photo) {
+        formData.append('photo', photo); // Subir la foto si se seleccionó
+    }
 
-    // Limpiar el formulario
+    // Enviar los datos del formulario a la función de Netlify (backend)
+    try {
+        const response = await fetch('/.netlify/functions/guardar-valoracion', {
+            method: 'POST',
+            body: formData,
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Mostrar mensaje de éxito
+            alert('Valoración enviada correctamente');
+        } else {
+            // Mostrar mensaje de error
+            alert('Error al enviar la valoración: ' + result.message);
+        }
+    } catch (error) {
+        // Manejo de errores
+        alert('Error al conectar con el servidor: ' + error.message);
+    }
+
+    // Limpiar el formulario después de enviarlo
     document.getElementById('ratingForm').reset();
-
-    // Actualiza la lista de valoraciones
-    displayReviews();
 });
 
-// Función para mostrar las valoraciones
+// Función para mostrar las valoraciones (en caso de que quieras implementarlo más tarde)
 function displayReviews() {
-    const reviews = JSON.parse(localStorage.getItem('reviews')) || [];
+    // Esta función puede ser útil si decides mostrar las valoraciones de alguna manera,
+    // pero en este caso como las valoraciones se manejan solo en el backend, no es necesario.
     const reviewsContainer = document.getElementById('reviews');
     reviewsContainer.innerHTML = '';  // Limpiar el contenedor antes de añadir nuevas valoraciones
 
-    reviews.forEach(review => {
-        const reviewDiv = document.createElement('div');
-        reviewDiv.classList.add('review');
-        reviewDiv.innerHTML = `
-            <strong>${review.name}</strong> - <span>${review.rating} estrellas</span>
-            <p>${review.comment}</p>
-        `;
-        reviewsContainer.appendChild(reviewDiv);
-    });
+    // Aquí podrías hacer una solicitud para obtener las valoraciones desde el backend si fuera necesario
 }
-
-// Mostrar valoraciones almacenadas cuando se carga la página
-displayReviews();
