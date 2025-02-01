@@ -60,3 +60,31 @@ button:hover {
     margin: 0;
     color: #555;
 }
+.stars {
+    direction: rtl; /* Hace que el clic en la estrella más a la izquierda se registre como la mayor valoración */
+    font-size: 30px;
+}
+
+.stars input {
+    display: none; /* Ocultamos los radio buttons */
+}
+
+.stars label {
+    cursor: pointer;
+    color: #ccc; /* Color por defecto */
+    transition: color 0.3s ease;
+}
+
+.stars input:checked ~ label {
+    color: gold; /* Estrella seleccionada */
+}
+
+.stars input:checked ~ label:hover,
+.stars input:hover ~ label {
+    color: gold; /* Hover sobre las estrellas */
+}
+
+.stars label:hover,
+.stars label:hover ~ label {
+    color: gold; /* Color de las estrellas cuando se pasa el ratón sobre ellas */
+}

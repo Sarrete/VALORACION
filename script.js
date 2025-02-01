@@ -54,13 +54,3 @@ document.getElementById('ratingForm').addEventListener('submit', async function(
     // Limpiar el formulario después de enviarlo
     document.getElementById('ratingForm').reset();
 });
-
-// Función para mostrar las valoraciones (en caso de que quieras implementarlo más tarde)
-function displayReviews() {
-    // Esta función puede ser útil si decides mostrar las valoraciones de alguna manera,
-    // pero en este caso como las valoraciones se manejan solo en el backend, no es necesario.
-    const reviewsContainer = document.getElementById('reviews');
-    reviewsContainer.innerHTML = '';  // Limpiar el contenedor antes de añadir nuevas valoraciones
-
-    // Aquí podrías hacer una solicitud para obtener las valoraciones desde el backend si fuera necesario
-}
