@@ -1,55 +1,45 @@
-// netlify/functions/guardar-valoracion.js
 const fs = require('fs');
 const path = require('path');
 
-exports.handler = async (event, context) => {
+exports.handler = async (event) => {
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, body: "Método no permitido" };
+  }
+
   try {
-    // Obtener los datos del formulario (nombre, valoración, comentario y foto)
+    // Leer y parsear los datos recibidos
     const data = JSON.parse(event.body);
-    const name = formData.get('name');
-    const rating = formData.get('rating');
-    const comment = formData.get('comment');
-    const photo = event.files ? event.files.photo : null;
+
+    const { name, rating, comment } = data;
 
     if (!name || !rating) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: 'El nombre y la valoración son obligatorios.' }),
-      };
+      return { statusCode: 400, body: JSON.stringify({ message: "El nombre y la valoración son obligatorios." }) };
     }
 
-    // Creamos un objeto para almacenar la valoración
-    const review = {
-      name,
-      rating,
-      comment,
-      photo: photo ? photo.name : null,
-    };
+    // Crear objeto de valoración
+    const review = { name, rating, comment };
 
-    // Aquí puedes almacenar las valoraciones en un archivo JSON
+    // Ruta del archivo donde se guardan las valoraciones
     const filePath = path.join(__dirname, 'reviews.json');
     let reviews = [];
-    
+
     if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath);
-      reviews = JSON.parse(data);
+      const fileData = fs.readFileSync(filePath, 'utf-8');
+      reviews = JSON.parse(fileData);
     }
 
     reviews.push(review);
-
-    // Guardamos las valoraciones en el archivo
     fs.writeFileSync(filePath, JSON.stringify(reviews, null, 2));
 
-    // Devolver una respuesta indicando que la valoración se guardó correctamente
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Valoración guardada correctamente.' }),
+      body: JSON.stringify({ message: "Valoración guardada correctamente." }),
     };
   } catch (error) {
-    console.error('Error al guardar la valoración:', error);
+    console.error("Error:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: 'Hubo un error al procesar la valoración.' }),
+      body: JSON.stringify({ message: "Error al guardar la valoración." }),
     };
   }
 };
