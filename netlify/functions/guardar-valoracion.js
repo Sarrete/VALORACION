@@ -5,8 +5,7 @@ const path = require('path');
 exports.handler = async (event, context) => {
   try {
     // Obtener los datos del formulario (nombre, valoración, comentario y foto)
-    const formData = new URLSearchParams(event.body);
-
+    const data = JSON.parse(event.body);
     const name = formData.get('name');
     const rating = formData.get('rating');
     const comment = formData.get('comment');
