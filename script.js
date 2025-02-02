@@ -31,7 +31,7 @@ document.getElementById('ratingForm').addEventListener('submit', async function(
 
     try {
         // Enviar los datos al backend como JSON
-        const response = await fetch('/netlify/functions/guardar-valoracion', {
+        const response = await fetch('..netlify/functions/guardar-valoracion', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
