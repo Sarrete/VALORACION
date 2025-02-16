@@ -25,7 +25,7 @@ document.getElementById('ratingForm').addEventListener('submit', async function(
     console.log('Enviando:', review); 
 
     try {
-        const response = await fetch('/.netlify/functions/guardar-valoracion', {  // ← FIX URL
+        const response = await fetch('/..netlify/functions/guardar-valoracion', {  // ← FIX URL
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

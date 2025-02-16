@@ -1,45 +1,48 @@
-const fs = require('fs');
-const path = require('path');
+const admin = require("firebase-admin");
+
+// Cargar las credenciales desde las variables de entorno en Netlify
+const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
+
+const db = admin.firestore();
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Método no permitido" };
-  }
-
   try {
-    // Leer y parsear los datos recibidos
+    if (event.httpMethod !== "POST") {
+      return { statusCode: 405, body: "Método no permitido" };
+    }
+
+    // Convertir los datos recibidos
     const data = JSON.parse(event.body);
 
-    const { name, rating, comment } = data;
-
-    if (!name || !rating) {
-      return { statusCode: 400, body: JSON.stringify({ message: "El nombre y la valoración son obligatorios." }) };
+    // Validar que los datos contienen lo necesario
+    if (!data.nombre || !data.comentario || !data.estrellas) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Faltan datos requeridos" }),
+      };
     }
 
-    // Crear objeto de valoración
-    const review = { name, rating, comment };
-
-    // Ruta del archivo donde se guardan las valoraciones
-    const filePath = path.join(__dirname, 'reviews.json');
-    let reviews = [];
-
-    if (fs.existsSync(filePath)) {
-      const fileData = fs.readFileSync(filePath, 'utf-8');
-      reviews = JSON.parse(fileData);
-    }
-
-    reviews.push(review);
-    fs.writeFileSync(filePath, JSON.stringify(reviews, null, 2));
+    // Guardar en Firestore en la colección "valoraciones"
+    const nuevaValoracion = await db.collection("valoraciones").add({
+      nombre: data.nombre,
+      comentario: data.comentario,
+      estrellas: data.estrellas,
+      aprobado: false, // Para que las revises antes de publicar
+      fecha: admin.firestore.Timestamp.now(),
+    });
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: "Valoración guardada correctamente." }),
+      body: JSON.stringify({ id: nuevaValoracion.id, mensaje: "Valoración guardada correctamente" }),
     };
   } catch (error) {
-    console.error("Error:", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Error al guardar la valoración." }),
-    };
+    console.error("Error guardando valoración:", error);
+    return { statusCode: 500, body: JSON.stringify({ error: "Error interno del servidor" }) };
   }
 };
