@@ -17,10 +17,9 @@ exports.handler = async (event) => {
       return { statusCode: 405, body: "Método no permitido" };
     }
 
-    // Convertir los datos recibidos
-    const data = JSON.parse(event.body);
+    const data = JSON.parse(event.body); // Convertir los datos JSON enviados por el frontend
 
-    // Validar que los datos contienen lo necesario
+    // Validar los datos recibidos
     if (!data.nombre || !data.comentario || !data.estrellas) {
       return {
         statusCode: 400,
@@ -28,12 +27,12 @@ exports.handler = async (event) => {
       };
     }
 
-    // Guardar en Firestore en la colección "valoraciones"
+    // Guardar la valoración en Firestore
     const nuevaValoracion = await db.collection("valoraciones").add({
       nombre: data.nombre,
       comentario: data.comentario,
       estrellas: data.estrellas,
-      aprobado: false, // Para que las revises antes de publicar
+      aprobado: false,  // La valoración necesita ser aprobada antes de ser publicada
       fecha: admin.firestore.Timestamp.now(),
     });
 
@@ -43,6 +42,9 @@ exports.handler = async (event) => {
     };
   } catch (error) {
     console.error("Error guardando valoración:", error);
-    return { statusCode: 500, body: JSON.stringify({ error: "Error interno del servidor" }) };
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Error interno del servidor" }),
+    };
   }
 };
