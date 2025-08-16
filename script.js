@@ -1,16 +1,17 @@
-// Importar Firebase (si usas <script type="module"> en tu HTML)
+// script.js
+// Importar Firebase como módulo
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
-// Configuración de Firebase
+// Configuración de tu proyecto Firebase
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROJECT_ID.firebaseapp.com",
-  projectId: "TU_PROJECT_ID",
-  storageBucket: "TU_PROJECT_ID.appspot.com",
-  messagingSenderId: "TU_MESSAGING_SENDER_ID",
-  appId: "TU_APP_ID"
+  apiKey: "AIzaSyBqGTWa97hI7Olw1LqRKlXtKi6Y5yV0Yks",
+  authDomain: "valoracion-web-11af4.firebaseapp.com",
+  projectId: "valoracion-web-11af4",
+  storageBucket: "valoracion-web-11af4.appspot.com",
+  messagingSenderId: "281280264244",
+  appId: "1:281280264244:web:6a07b7c0b61872ecf73261",
 };
 
 // Inicializar Firebase
@@ -69,7 +70,11 @@ async function loadReviews() {
   reviewsContainer.innerHTML = '';
 
   try {
-    const q = query(collection(db, 'valoraciones'), where('aprobado', '==', true), orderBy('timestamp', 'desc'));
+    const q = query(
+      collection(db, 'valoraciones'), 
+      where('aprobado', '==', true), 
+      orderBy('timestamp', 'desc')
+    );
     const snapshot = await getDocs(q);
 
     snapshot.forEach(doc => {
