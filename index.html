@@ -1,141 +1,133 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Web para enviar y ver valoraciones de productos o servicios.">
-    <title>Valoraciones</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <div class="container">
-        <h1>Deja tu valoración</h1>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { getFirestore, collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
-        <!-- Formulario de valoración -->
-        <form id="ratingForm">
-            <label for="name">Tu nombre:</label>
-            <input type="text" id="name" required><br><br>
+// Configuración de Firebase
+const firebaseConfig = {
+    apiKey: "AIzaSyBqGTWa97hI7Olw1LqRKlXtKi6Y5yV0Yks",
+    authDomain: "valoracion-web-11af4.firebaseapp.com",
+    projectId: "valoracion-web-11af4",
+    storageBucket: "valoracion-web-11af4.appspot.com",
+    messagingSenderId: "281280264244",
+    appId: "1:281280264244:web:6a07b7c0b61872ecf73261"
+};
 
-            <label for="rating">Valoración (1-5):</label>
-            <div class="stars">
-                <input type="radio" name="rating" id="star5" value="5"><label for="star5">★</label>
-                <input type="radio" name="rating" id="star4" value="4"><label for="star4">★</label>
-                <input type="radio" name="rating" id="star3" value="3"><label for="star3">★</label>
-                <input type="radio" name="rating" id="star2" value="2"><label for="star2">★</label>
-                <input type="radio" name="rating" id="star1" value="1"><label for="star1">★</label>
-            </div><br><br>
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
 
-            <label for="comment">Comentario (opcional):</label>
-            <textarea id="comment"></textarea><br><br>
+// Referencias HTML
+const form = document.getElementById('ratingForm');
+const reviewsContainer = document.getElementById('reviews');
+const stars = document.querySelectorAll('#ratingStars .star');
+const ratingInput = document.getElementById('ratingValue');
+let selectedRating = 0;
 
-            <label for="photo">Subir Foto (opcional):</label>
-            <input type="file" id="photo"><br><br>
+// Interacción de estrellas
+stars.forEach(star => {
+    const value = parseInt(star.dataset.value);
 
-            <button type="submit">Enviar valoración</button>
-        </form>
+    star.addEventListener('mouseover', () => highlightStars(value));
+    star.addEventListener('mouseout', () => highlightStars(selectedRating));
+    star.addEventListener('click', () => {
+        selectedRating = value;
+        ratingInput.value = selectedRating;
+        highlightStars(selectedRating);
+    });
+});
 
-        <h2>Valoraciones Recientes</h2>
-        <div id="reviews"></div>
-    </div>
+function highlightStars(rating) {
+    stars.forEach(star => {
+        const value = parseInt(star.dataset.value);
+        star.classList.toggle('hover', value <= rating);
+        star.classList.toggle('selected', value <= rating);
+    });
+}
 
-    <!-- Firebase y Script -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
+// Enviar valoración
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-        // Configuración real de Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyBqGTWa97hI7Olw1LqRKlXtKi6Y5yV0Yks",
-            authDomain: "valoracion-web-11af4.firebaseapp.com",
-            projectId: "valoracion-web-11af4",
-            storageBucket: "valoracion-web-11af4.appspot.com",
-            messagingSenderId: "281280264244",
-            appId: "1:281280264244:web:6a07b7c0b61872ecf73261"
-        };
+    const name = document.getElementById('name').value.trim();
+    const rating = parseInt(ratingInput.value, 10);
+    const comment = document.getElementById('comment').value;
+    const photoFile = document.getElementById('photo').files[0];
 
-        // Inicializar Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
+    if (!name) { alert('Por favor, ingresa tu nombre.'); return; }
+    if (!rating) { alert('Por favor, selecciona una valoración.'); return; }
 
-        // Referencias a elementos HTML
-        const form = document.getElementById('ratingForm');
-        const reviewsContainer = document.getElementById('reviews');
+    try {
+        let photoURL = null;
 
-        // Función para enviar valoración
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const name = document.getElementById('name').value.trim();
-            const rating = document.querySelector('input[name="rating"]:checked')?.value;
-            const comment = document.getElementById('comment').value;
-            const photoFile = document.getElementById('photo').files[0];
-
-            if (!name) { alert('Por favor, ingresa tu nombre.'); return; }
-            if (!rating) { alert('Por favor, selecciona una valoración.'); return; }
-
-            try {
-                let photoURL = null;
-
-                // Subir foto si hay
-                if (photoFile) {
-                    const photoRef = ref(storage, `valoraciones/${Date.now()}_${photoFile.name}`);
-                    const snapshot = await uploadBytes(photoRef, photoFile);
-                    photoURL = await getDownloadURL(snapshot.ref);
-                }
-
-                // Guardar valoración en Firestore
-                await addDoc(collection(db, 'valoraciones'), {
-                    name,
-                    rating: parseInt(rating, 10),
-                    comment: comment || 'Sin comentario',
-                    photoURL: photoURL || null,
-                    timestamp: serverTimestamp(),
-                    aprobado: false // Revisar antes de publicar
-                });
-
-                alert('Valoración enviada correctamente. Se revisará antes de publicarla.');
-                form.reset();
-                loadReviews(); // Actualizar valoraciones mostradas
-
-            } catch (error) {
-                console.error('Error al enviar valoración:', error);
-                alert('Ocurrió un error al enviar tu valoración.');
-            }
-        });
-
-        // Función para cargar valoraciones aprobadas
-        async function loadReviews() {
-            reviewsContainer.innerHTML = '';
-
-            try {
-                const q = query(collection(db, 'valoraciones'), where('aprobado', '==', true), orderBy('timestamp', 'desc'));
-                const snapshot = await getDocs(q);
-
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const div = document.createElement('div');
-                    div.classList.add('review');
-
-                    div.innerHTML = `
-                        <h3>${data.name}</h3>
-                        <p>${'★'.repeat(data.rating)}${'☆'.repeat(5 - data.rating)}</p>
-                        <p>${data.comment}</p>
-                        ${data.photoURL ? `<img src="${data.photoURL}" alt="Foto valoracion" style="max-width:200px;">` : ''}
-                        <hr>
-                    `;
-
-                    reviewsContainer.appendChild(div);
-                });
-
-            } catch (error) {
-                console.error('Error al cargar valoraciones:', error);
-            }
+        if (photoFile) {
+            const photoRef = ref(storage, `valoraciones/${Date.now()}_${photoFile.name}`);
+            const snapshot = await uploadBytes(photoRef, photoFile);
+            photoURL = await getDownloadURL(snapshot.ref);
         }
 
-        // Cargar valoraciones al iniciar
+        await addDoc(collection(db, 'valoraciones'), {
+            name,
+            rating,
+            comment: comment || 'Sin comentario',
+            photoURL: photoURL || null,
+            timestamp: serverTimestamp(),
+            aprobado: false
+        });
+
+        alert('Valoración enviada correctamente. Se revisará antes de publicarla.');
+        form.reset();
+        selectedRating = 0;
+        highlightStars(0);
         loadReviews();
-    </script>
-</body>
-</html>
+
+    } catch (error) {
+        console.error('Error al enviar valoración:', error);
+        alert('Ocurrió un error al enviar tu valoración.');
+    }
+});
+
+// Cargar valoraciones aprobadas
+async function loadReviews() {
+    reviewsContainer.innerHTML = '';
+
+    try {
+        const q = query(collection(db, 'valoraciones'), where('aprobado', '==', true), orderBy('timestamp', 'desc'));
+        const snapshot = await getDocs(q);
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const div = document.createElement('div');
+            div.classList.add('review');
+
+            // Crear estrellas doradas
+            const starsDiv = document.createElement('div');
+            for (let i = 1; i <= 5; i++) {
+                const star = document.createElement('span');
+                star.innerHTML = '&#9733;';
+                star.style.color = i <= data.rating ? '#FFD700' : '#ccc';
+                star.style.fontSize = '20px';
+                star.style.marginRight = '2px';
+                starsDiv.appendChild(star);
+            }
+
+            div.innerHTML = `
+                <h3>${data.name}</h3>
+                <p>${data.comment}</p>
+                ${data.photoURL ? `<img src="${data.photoURL}" alt="Foto valoracion" style="max-width:200px;">` : ''}
+                <hr>
+            `;
+            div.insertBefore(starsDiv, div.querySelector('p'));
+
+            reviewsContainer.appendChild(div);
+        });
+
+    } catch (error) {
+        console.error('Error al cargar valoraciones:', error);
+    }
+}
+
+// Inicializar valoraciones
+loadReviews();
+</script>
+tml>
