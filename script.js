@@ -1,8 +1,8 @@
 // script.js
 // Importar Firebase como módulo
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getStorage } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
 // Configuración de tu proyecto Firebase
 const firebaseConfig = {
@@ -23,12 +23,34 @@ const storage = getStorage(app);
 const form = document.getElementById('ratingForm');
 const reviewsContainer = document.getElementById('reviews');
 
-// Función para enviar valoración
+// --- FUNCIONALIDAD ESTRELLAS ---
+const stars = document.querySelectorAll('.star');
+let selectedRating = 0;
+
+stars.forEach(star => {
+    star.addEventListener('mouseover', () => highlightStars(star.dataset.value));
+    star.addEventListener('mouseout', () => highlightStars(selectedRating));
+    star.addEventListener('click', () => {
+        selectedRating = star.dataset.value;
+        highlightStars(selectedRating);
+    });
+});
+
+function highlightStars(value) {
+    stars.forEach(star => {
+        if (star.dataset.value <= value) {
+            star.classList.add('selected');
+        } else {
+            star.classList.remove('selected');
+        }
+    });
+}
+
+// --- FUNCIONALIDAD ENVÍO VALORACIÓN ---
 form.addEventListener('submit', async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
     const name = document.getElementById('name').value.trim();
-    const rating = document.querySelector('input[name="rating"]:checked')?.value;
     const comment = document.getElementById('comment').value;
 
     if (!name) {
@@ -36,26 +58,23 @@ form.addEventListener('submit', async (e) => {
         return;
     }
 
-    if (!rating) {
+    if (!selectedRating) {
         alert('Por favor, selecciona una valoración.');
         return;
     }
 
-    // Crear objeto de valoración
     const review = {
         name: name,
-        rating: parseInt(rating, 10), // Convertir a número
+        rating: parseInt(selectedRating, 10),
         comment: comment || 'Sin comentario'
     };
     
-    console.log('Enviando:', review); 
+    console.log('Enviando:', review);
 
     try {
-        const response = await fetch('/.netlify/functions/guardar-valoracion', {  // ← FIX URL
+        const response = await fetch('/.netlify/functions/guardar-valoracion', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(review)
         });
 
@@ -63,6 +82,7 @@ form.addEventListener('submit', async (e) => {
 
         if (response.ok) {
             alert('Valoración enviada correctamente');
+            displayReview(review); // Mostrar inmediatamente
         } else {
             alert('Error: ' + result.message);
         }
@@ -70,5 +90,46 @@ form.addEventListener('submit', async (e) => {
         alert('Error de conexión: ' + error.message);
     }
 
-    document.getElementById('ratingForm').reset();
+    form.reset();
+    selectedRating = 0;
+    highlightStars(0);
 });
+
+// --- FUNCIONALIDAD MOSTRAR RESEÑAS ---
+function displayReview(review) {
+    const container = document.createElement('div');
+    container.classList.add('review');
+
+    // Texto limitado a 3 líneas
+    const text = document.createElement('p');
+    text.classList.add('review-text');
+    text.innerText = review.comment;
+    container.appendChild(text);
+
+    const seeMore = document.createElement('span');
+    seeMore.classList.add('see-more');
+    seeMore.innerText = ' Ver más';
+    seeMore.addEventListener('click', () => {
+        text.style.maxHeight = 'none';
+        seeMore.style.display = 'none';
+    });
+
+    if (text.scrollHeight > 60) { // aprox. 3 líneas
+        text.style.maxHeight = '60px';
+        text.style.overflow = 'hidden';
+        container.appendChild(seeMore);
+    }
+
+    // Estrellas doradas
+    const starsContainer = document.createElement('div');
+    for (let i = 1; i <= 5; i++) {
+        const star = document.createElement('span');
+        star.classList.add('review-stars');
+        star.innerHTML = '&#9733;';
+        if (i > review.rating) star.style.opacity = 0.3; // estrellas no seleccionadas
+        starsContainer.appendChild(star);
+    }
+    container.appendChild(starsContainer);
+
+    reviewsContainer.appendChild(container);
+}
