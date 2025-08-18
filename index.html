@@ -1,65 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Valoraciones</title>
+<style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+    .container { max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; }
+    .stars { display: flex; gap: 5px; cursor: pointer; }
+    .star { font-size: 2rem; color: lightgray; }
+    .star.selected, .star.hover { color: gold; }
+    .review { border-bottom: 1px solid #ddd; padding: 10px 0; }
+    img { max-width: 200px; display: block; margin-top: 5px; }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Deja tu valoración</h1>
+    <form id="ratingForm">
+        <label for="name">Tu nombre:</label>
+        <input type="text" id="name" required><br><br>
+
+        <label>Valoración:</label>
+        <div class="stars" id="ratingStars">
+            <span class="star" data-value="1">&#9733;</span>
+            <span class="star" data-value="2">&#9733;</span>
+            <span class="star" data-value="3">&#9733;</span>
+            <span class="star" data-value="4">&#9733;</span>
+            <span class="star" data-value="5">&#9733;</span>
+        </div><br>
+
+        <label for="comment">Comentario (opcional):</label>
+        <textarea id="comment"></textarea><br><br>
+
+        <label for="photo">Subir Foto (opcional):</label>
+        <input type="file" id="photo"><br><br>
+
+        <button type="submit">Enviar valoración</button>
+    </form>
+
+    <h2>Valoraciones Recientes</h2>
+    <div id="reviews"></div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
-// Configuración de Firebase
+// Configuración Firebase
 const firebaseConfig = {
-    apiKey: "AIzaSyBqGTWa97hI7Olw1LqRKlXtKi6Y5yV0Yks",
-    authDomain: "valoracion-web-11af4.firebaseapp.com",
-    projectId: "valoracion-web-11af4",
-    storageBucket: "valoracion-web-11af4.appspot.com",
-    messagingSenderId: "281280264244",
-    appId: "1:281280264244:web:6a07b7c0b61872ecf73261"
+  apiKey: "AIzaSyBqGTWa97hI7Olw1LqRKlXtKi6Y5yV0Yks",
+  authDomain: "valoracion-web-11af4.firebaseapp.com",
+  projectId: "valoracion-web-11af4",
+  storageBucket: "valoracion-web-11af4.appspot.com",
+  messagingSenderId: "281280264244",
+  appId: "1:281280264244:web:6a07b7c0b61872ecf73261"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// Referencias HTML
 const form = document.getElementById('ratingForm');
 const reviewsContainer = document.getElementById('reviews');
-const stars = document.querySelectorAll('#ratingStars .star');
-const ratingInput = document.getElementById('ratingValue');
+const stars = document.querySelectorAll('.star');
 let selectedRating = 0;
 
-// Interacción de estrellas
+// Función para manejar hover y selección de estrellas
 stars.forEach(star => {
-    const value = parseInt(star.dataset.value);
-
-    star.addEventListener('mouseover', () => highlightStars(value));
-    star.addEventListener('mouseout', () => highlightStars(selectedRating));
+    star.addEventListener('mouseover', () => {
+        const value = parseInt(star.dataset.value);
+        stars.forEach(s => s.classList.toggle('hover', parseInt(s.dataset.value) <= value));
+    });
+    star.addEventListener('mouseout', () => {
+        stars.forEach(s => s.classList.remove('hover'));
+    });
     star.addEventListener('click', () => {
-        selectedRating = value;
-        ratingInput.value = selectedRating;
-        highlightStars(selectedRating);
+        selectedRating = parseInt(star.dataset.value);
+        stars.forEach(s => s.classList.toggle('selected', parseInt(s.dataset.value) <= selectedRating));
     });
 });
-
-function highlightStars(rating) {
-    stars.forEach(star => {
-        const value = parseInt(star.dataset.value);
-        star.classList.toggle('hover', value <= rating);
-        star.classList.toggle('selected', value <= rating);
-    });
-}
 
 // Enviar valoración
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
-
     const name = document.getElementById('name').value.trim();
-    const rating = parseInt(ratingInput.value, 10);
     const comment = document.getElementById('comment').value;
     const photoFile = document.getElementById('photo').files[0];
 
     if (!name) { alert('Por favor, ingresa tu nombre.'); return; }
-    if (!rating) { alert('Por favor, selecciona una valoración.'); return; }
+    if (selectedRating === 0) { alert('Por favor, selecciona una valoración.'); return; }
 
     try {
         let photoURL = null;
-
         if (photoFile) {
             const photoRef = ref(storage, `valoraciones/${Date.now()}_${photoFile.name}`);
             const snapshot = await uploadBytes(photoRef, photoFile);
@@ -68,7 +102,7 @@ form.addEventListener('submit', async (e) => {
 
         await addDoc(collection(db, 'valoraciones'), {
             name,
-            rating,
+            rating: selectedRating,
             comment: comment || 'Sin comentario',
             photoURL: photoURL || null,
             timestamp: serverTimestamp(),
@@ -78,55 +112,40 @@ form.addEventListener('submit', async (e) => {
         alert('Valoración enviada correctamente. Se revisará antes de publicarla.');
         form.reset();
         selectedRating = 0;
-        highlightStars(0);
+        stars.forEach(s => s.classList.remove('selected'));
         loadReviews();
 
-    } catch (error) {
-        console.error('Error al enviar valoración:', error);
-        alert('Ocurrió un error al enviar tu valoración.');
+    } catch (err) {
+        console.error(err);
+        alert('Error al enviar la valoración.');
     }
 });
 
 // Cargar valoraciones aprobadas
 async function loadReviews() {
     reviewsContainer.innerHTML = '';
-
     try {
         const q = query(collection(db, 'valoraciones'), where('aprobado', '==', true), orderBy('timestamp', 'desc'));
         const snapshot = await getDocs(q);
-
         snapshot.forEach(doc => {
             const data = doc.data();
             const div = document.createElement('div');
             div.classList.add('review');
-
-            // Crear estrellas doradas
-            const starsDiv = document.createElement('div');
-            for (let i = 1; i <= 5; i++) {
-                const star = document.createElement('span');
-                star.innerHTML = '&#9733;';
-                star.style.color = i <= data.rating ? '#FFD700' : '#ccc';
-                star.style.fontSize = '20px';
-                star.style.marginRight = '2px';
-                starsDiv.appendChild(star);
-            }
-
             div.innerHTML = `
                 <h3>${data.name}</h3>
+                <p>${'★'.repeat(data.rating)}${'☆'.repeat(5 - data.rating)}</p>
                 <p>${data.comment}</p>
-                ${data.photoURL ? `<img src="${data.photoURL}" alt="Foto valoracion" style="max-width:200px;">` : ''}
-                <hr>
+                ${data.photoURL ? `<img src="${data.photoURL}" alt="Foto valoracion">` : ''}
             `;
-            div.insertBefore(starsDiv, div.querySelector('p'));
-
             reviewsContainer.appendChild(div);
         });
-
-    } catch (error) {
-        console.error('Error al cargar valoraciones:', error);
+    } catch (err) {
+        console.error(err);
     }
 }
 
-// Inicializar valoraciones
+// Cargar reseñas al iniciar
 loadReviews();
 </script>
+</body>
+</html>
