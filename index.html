@@ -1,44 +1,48 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Valoraciones con Fotos</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Web para enviar y ver valoraciones de productos o servicios.">
+    <title>Valoraciones</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div class="container">
+        <h1>Deja tu valoración</h1>
 
-<h2>Deja tu valoración</h2>
-<form id="reviewForm">
-  <label>Nombre:</label><br>
-  <input type="text" id="name" required><br><br>
+        <!-- Formulario de valoración -->
+        <form id="ratingForm">
+            <label for="name">Tu nombre:</label>
+            <input type="text" id="name" required><br><br>
 
-  <label>Comentario:</label><br>
-  <textarea id="comment" rows="3" required></textarea><br><br>
+            <label for="rating">Valoración (1-5):</label>
+            <div class="stars">
+                <input type="radio" name="rating" id="star5" value="5"><label for="star5">★</label>
+                <input type="radio" name="rating" id="star4" value="4"><label for="star4">★</label>
+                <input type="radio" name="rating" id="star3" value="3"><label for="star3">★</label>
+                <input type="radio" name="rating" id="star2" value="2"><label for="star2">★</label>
+                <input type="radio" name="rating" id="star1" value="1"><label for="star1">★</label>
+            </div><br><br>
 
-  <label>Estrellas:</label><br>
-  <select id="rating" required>
-    <option value="1">⭐</option>
-    <option value="2">⭐⭐</option>
-    <option value="3">⭐⭐⭐</option>
-    <option value="4">⭐⭐⭐⭐</option>
-    <option value="5">⭐⭐⭐⭐⭐</option>
-  </select><br><br>
+            <label for="comment">Comentario (opcional):</label>
+            <textarea id="comment"></textarea><br><br>
 
-  <label>Foto (opcional, max 2MB):</label><br>
-  <input type="file" id="photo" accept="image/*"><br><br>
+            <label for="photo">Subir Foto (opcional):</label>
+            <input type="file" id="photo"><br><br>
 
-  <button type="submit">Enviar valoración</button>
-</form>
+            <button type="submit">Enviar valoración</button>
+        </form>
 
-<h2>Valoraciones aprobadas</h2>
-<div id="reviews"></div>
+        <h2>Valoraciones Recientes</h2>
+        <div id="reviews"></div>
+    </div>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-    <script>
+    <!-- Firebase y Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
         // Configuración real de Firebase
         const firebaseConfig = {
@@ -50,75 +54,88 @@
             appId: "1:281280264244:web:6a07b7c0b61872ecf73261"
         };
 
-// Inicializa Firebase
-firebase.initializeApp(firebaseConfig);
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
 
-const db = firebase.database();
-const storage = firebase.storage();
+        // Referencias a elementos HTML
+        const form = document.getElementById('ratingForm');
+        const reviewsContainer = document.getElementById('reviews');
 
-// Enviar valoración
-document.getElementById('reviewForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
+        // Función para enviar valoración
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
 
-  const name = document.getElementById('name').value.trim();
-  const comment = document.getElementById('comment').value.trim();
-  const rating = document.getElementById('rating').value;
-  const file = document.getElementById('photo').files[0];
+            const name = document.getElementById('name').value.trim();
+            const rating = document.querySelector('input[name="rating"]:checked')?.value;
+            const comment = document.getElementById('comment').value;
+            const photoFile = document.getElementById('photo').files[0];
 
-  let photoURL = "";
+            if (!name) { alert('Por favor, ingresa tu nombre.'); return; }
+            if (!rating) { alert('Por favor, selecciona una valoración.'); return; }
 
-  if (file) {
-    if (file.size > 2 * 1024 * 1024) {
-      alert("La foto supera los 2 MB.");
-      return;
-    }
-    const storageRef = storage.ref('valoraciones/' + Date.now() + "_" + file.name);
-    try {
-      const snapshot = await storageRef.put(file);
-      photoURL = await snapshot.ref.getDownloadURL();
-    } catch (err) {
-      alert("Error al subir la foto: " + err.message);
-      return;
-    }
-  }
+            try {
+                let photoURL = null;
 
-  const reviewData = {
-    name,
-    comment,
-    rating,
-    photoURL,
-    approved: false,
-    timestamp: Date.now()
-  };
+                // Subir foto si hay
+                if (photoFile) {
+                    const photoRef = ref(storage, `valoraciones/${Date.now()}_${photoFile.name}`);
+                    const snapshot = await uploadBytes(photoRef, photoFile);
+                    photoURL = await getDownloadURL(snapshot.ref);
+                }
 
-  // Guardar en Realtime Database
-  db.ref('valoraciones').push(reviewData)
-    .then(() => {
-      alert("Valoración enviada y pendiente de aprobación.");
-      document.getElementById('reviewForm').reset();
-    })
-    .catch(err => {
-      alert("Error al enviar valoración: " + err.message);
-    });
-});
+                // Guardar valoración en Firestore
+                await addDoc(collection(db, 'valoraciones'), {
+                    name,
+                    rating: parseInt(rating, 10),
+                    comment: comment || 'Sin comentario',
+                    photoURL: photoURL || null,
+                    timestamp: serverTimestamp(),
+                    aprobado: false // Revisar antes de publicar
+                });
 
-// Mostrar valoraciones aprobadas
-const reviewsDiv = document.getElementById('reviews');
-db.ref('valoraciones').orderByChild('approved').equalTo(true).on('value', snapshot => {
-  reviewsDiv.innerHTML = "";
-  snapshot.forEach(child => {
-    const data = child.val();
-    const reviewEl = document.createElement('div');
-    reviewEl.innerHTML = `
-      <strong>${data.name}</strong> - ${'⭐'.repeat(data.rating)}<br>
-      ${data.comment.length > 100 ? data.comment.substring(0,100) + '... <a href="#" onclick="alert(\''+data.comment+'\')">ver más</a>' : data.comment}<br>
-      ${data.photoURL ? `<img src="${data.photoURL}" style="max-width:200px;"><br>` : ''}
-      <hr>
-    `;
-    reviewsDiv.appendChild(reviewEl);
-  });
-});
-</script>
+                alert('Valoración enviada correctamente. Se revisará antes de publicarla.');
+                form.reset();
+                loadReviews(); // Actualizar valoraciones mostradas
 
+            } catch (error) {
+                console.error('Error al enviar valoración:', error);
+                alert('Ocurrió un error al enviar tu valoración.');
+            }
+        });
+
+        // Función para cargar valoraciones aprobadas
+        async function loadReviews() {
+            reviewsContainer.innerHTML = '';
+
+            try {
+                const q = query(collection(db, 'valoraciones'), where('aprobado', '==', true), orderBy('timestamp', 'desc'));
+                const snapshot = await getDocs(q);
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const div = document.createElement('div');
+                    div.classList.add('review');
+
+                    div.innerHTML = `
+                        <h3>${data.name}</h3>
+                        <p>${'★'.repeat(data.rating)}${'☆'.repeat(5 - data.rating)}</p>
+                        <p>${data.comment}</p>
+                        ${data.photoURL ? `<img src="${data.photoURL}" alt="Foto valoracion" style="max-width:200px;">` : ''}
+                        <hr>
+                    `;
+
+                    reviewsContainer.appendChild(div);
+                });
+
+            } catch (error) {
+                console.error('Error al cargar valoraciones:', error);
+            }
+        }
+
+        // Cargar valoraciones al iniciar
+        loadReviews();
+    </script>
 </body>
 </html>
