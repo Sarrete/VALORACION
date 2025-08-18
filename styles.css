@@ -90,6 +90,11 @@ form button:hover {
     font-size: 20px;
     margin-right: 2px;
 }
+.review p:first-of-type {
+  color: gold;       /* Estrellas doradas */
+  font-size: 1.5rem; /* Ajusta el tamaño si quieres */
+  margin: 0;
+}
 
 /* --- Responsive --- */
 @media (max-width: 600px) {
