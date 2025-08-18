@@ -123,26 +123,29 @@ form.addEventListener('submit', async (e) => {
 
 // Cargar valoraciones aprobadas
 async function loadReviews() {
-    reviewsContainer.innerHTML = '';
-    try {
-        const q = query(collection(db, 'valoraciones'), where('aprobado', '==', true), orderBy('timestamp', 'desc'));
-        const snapshot = await getDocs(q);
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const div = document.createElement('div');
-            div.classList.add('review');
-            div.innerHTML = `
-                <h3>${data.name}</h3>
-                <p>${'★'.repeat(data.rating)}${'☆'.repeat(5 - data.rating)}</p>
-                <p>${data.comment}</p>
-                ${data.photoURL ? `<img src="${data.photoURL}" alt="Foto valoracion">` : ''}
-            `;
-            reviewsContainer.appendChild(div);
-        });
-    } catch (err) {
-        console.error(err);
-    }
+  reviewsContainer.innerHTML = '';
+  try {
+    const q = query(collection(db, 'valoraciones'), where('aprobado', '==', true), orderBy('timestamp', 'desc'));
+    const snapshot = await getDocs(q);
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const div = document.createElement('div');
+      div.classList.add('review');
+      div.innerHTML = `
+        <h3>${data.name}</h3>
+        <p class="stars-display">
+          ${'★'.repeat(data.rating)}${'☆'.repeat(5 - data.rating)}
+        </p>
+        <p>${data.comment}</p>
+        ${data.photoURL ? `<img src="${data.photoURL}" alt="Foto valoracion">` : ''}
+      `;
+      reviewsContainer.appendChild(div);
+    });
+  } catch (err) {
+    console.error(err);
+  }
 }
+
 
 // Cargar reseñas al iniciar
 loadReviews();
