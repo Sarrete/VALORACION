@@ -60,10 +60,6 @@ button:hover {
     margin: 0;
     color: #555;
 }
-.stars {
-    direction: rtl; /* Hace que el clic en la estrella más a la izquierda se registre como la mayor valoración */
-    font-size: 30px;
-}
 
 .stars input {
     display: none; /* Ocultamos los radio buttons */
@@ -87,4 +83,20 @@ button:hover {
 .stars label:hover,
 .stars label:hover ~ label {
     color: gold; /* Color de las estrellas cuando se pasa el ratón sobre ellas */
+}
+.star {
+  font-size: 30px;
+  color: black; /* por defecto */
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.star.selected,
+.star.hovered {
+  color: gold; /* estrellas doradas */
+}
+
+.review-stars {
+  color: gold; /* estrellas doradas para reseñas publicadas */
+  font-size: 20px;
 }
