@@ -84,7 +84,9 @@ button:hover {
 .stars label:hover ~ label {
     color: gold; /* Color de las estrellas cuando se pasa el ratón sobre ellas */
 }
+
 .star {
+  direction: rtl; /* Hace que el clic en la estrella más a la izquierda se registre como la mayor valoración */
   font-size: 30px;
   color: black; /* por defecto */
   cursor: pointer;
