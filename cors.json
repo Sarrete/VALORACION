@@ -1,0 +1,8 @@
+[
+    {
+      "origin": ["https://wondrous-biscochitos-a11a82.netlify.app"],
+      "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+  
