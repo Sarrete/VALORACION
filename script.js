@@ -4,7 +4,6 @@ import { getFirestore, collection, addDoc, query, where, getDocs, serverTimestam
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
 document.addEventListener('DOMContentLoaded', () => {
-
     // --- Inicializar Firebase ---
     const firebaseConfig = {
         apiKey: "AIzaSyBqGTWa97hI7Olw1LqRKlXtKi6Y5yV0Yks",
@@ -27,29 +26,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Función para actualizar visualmente las estrellas ---
     function updateStars(rating) {
         stars.forEach((star, index) => {
-            if (index < rating) {
-                star.classList.add('selected');
-            } else {
-                star.classList.remove('selected');
-            }
+            star.classList.toggle('selected', index < rating);
         });
     }
 
     // --- Eventos de estrellas ---
     stars.forEach((star, index) => {
-        star.addEventListener('mouseover', () => {
-            updateStars(index + 1);
-        });
-        star.addEventListener('mouseout', () => {
-            updateStars(currentRating);
-        });
+        star.addEventListener('mouseover', () => updateStars(index + 1));
+        star.addEventListener('mouseout', () => updateStars(currentRating));
         star.addEventListener('click', () => {
             currentRating = index + 1;
             updateStars(currentRating);
         });
     });
 
-    // --- Input oculto para enviar rating en el formulario ---
+    // --- Input oculto ---
     const ratingInput = document.createElement('input');
     ratingInput.type = 'hidden';
     ratingInput.name = 'rating';
@@ -64,8 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const comment = document.getElementById('comment').value;
         const photoFile = document.getElementById('photo').files[0];
 
-        if (!name) { alert('Por favor, ingresa tu nombre.'); return; }
-        if (currentRating === 0) { alert('Por favor, selecciona una valoración.'); return; }
+        if (!name) return alert('Por favor, ingresa tu nombre.');
+        if (currentRating === 0) return alert('Por favor, selecciona una valoración.');
 
         try {
             let photoURL = null;
@@ -89,14 +80,13 @@ document.addEventListener('DOMContentLoaded', () => {
             currentRating = 0;
             updateStars(0);
             loadReviews();
-
         } catch (err) {
             console.error(err);
             alert('Error al enviar la valoración.');
         }
     });
 
-    // --- Función para cargar valoraciones ---
+    // --- Cargar valoraciones ---
     async function loadReviews() {
         reviewsContainer.innerHTML = '';
         try {
@@ -113,20 +103,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 div.classList.add('review');
                 div.innerHTML = `
                     <h3>${data.name}</h3>
-                    <p style="color: gold; font-size: 1.5rem; margin: 0;">
+                    <p class="stars-display">
                         ${'★'.repeat(data.rating)}${'☆'.repeat(5 - data.rating)}
                     </p>
                     <p>${data.comment}</p>
-                    ${data.photoURL ? `<img src="${data.photoURL}" alt="Foto valoracion">` : ''}
+                    ${data.photoURL ? `<img src="${data.photoURL}" alt="Foto valoración">` : ''}
                 `;
                 reviewsContainer.appendChild(div);
             });
-
         } catch (err) {
             console.error(err);
         }
     }
 
-    // --- Cargar reseñas al iniciar ---
+    // --- Inicio ---
     loadReviews();
 });
