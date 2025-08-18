@@ -27,76 +27,48 @@ const reviewsContainer = document.getElementById('reviews');
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  const name = document.getElementById('name').value.trim();
-  const rating = document.querySelector('input[name="rating"]:checked')?.value;
-  const comment = document.getElementById('comment').value;
-  const photoFile = document.getElementById('photo').files[0];
+    const name = document.getElementById('name').value.trim();
+    const rating = document.querySelector('input[name="rating"]:checked')?.value;
+    const comment = document.getElementById('comment').value;
 
-  if (!name) { alert('Por favor, ingresa tu nombre.'); return; }
-  if (!rating) { alert('Por favor, selecciona una valoración.'); return; }
-
-  try {
-    let photoURL = null;
-
-    // Subir foto si hay
-    if (photoFile) {
-      const photoRef = ref(storage, `valoraciones/${Date.now()}_${photoFile.name}`);
-      const snapshot = await uploadBytes(photoRef, photoFile);
-      photoURL = await getDownloadURL(snapshot.ref);
+    if (!name) {
+        alert('Por favor, ingresa tu nombre.');
+        return;
     }
 
-    // Guardar valoración en Firestore
-    await addDoc(collection(db, 'valoraciones'), {
-      name,
-      rating: parseInt(rating, 10),
-      comment: comment || 'Sin comentario',
-      photoURL: photoURL || null,
-      timestamp: serverTimestamp(),
-      aprobado: false // Revisar antes de publicar
-    });
+    if (!rating) {
+        alert('Por favor, selecciona una valoración.');
+        return;
+    }
 
-    alert('Valoración enviada correctamente. Se revisará antes de publicarla.');
-    form.reset();
-    loadReviews(); // Actualizar valoraciones mostradas
+    // Crear objeto de valoración
+    const review = {
+        name: name,
+        rating: parseInt(rating, 10), // Convertir a número
+        comment: comment || 'Sin comentario'
+    };
+    
+    console.log('Enviando:', review); 
 
-  } catch (error) {
-    console.error('Error al enviar valoración:', error);
-    alert('Ocurrió un error al enviar tu valoración.');
-  }
+    try {
+        const response = await fetch('/.netlify/functions/guardar-valoracion', {  // ← FIX URL
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(review)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('Valoración enviada correctamente');
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch (error) {
+        alert('Error de conexión: ' + error.message);
+    }
+
+    document.getElementById('ratingForm').reset();
 });
-
-// Función para cargar valoraciones aprobadas
-async function loadReviews() {
-  reviewsContainer.innerHTML = '';
-
-  try {
-    const q = query(
-      collection(db, 'valoraciones'), 
-      where('aprobado', '==', true), 
-      orderBy('timestamp', 'desc')
-    );
-    const snapshot = await getDocs(q);
-
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      const div = document.createElement('div');
-      div.classList.add('review');
-
-      div.innerHTML = `
-        <h3>${data.name}</h3>
-        <p>${'★'.repeat(data.rating)}${'☆'.repeat(5 - data.rating)}</p>
-        <p>${data.comment}</p>
-        ${data.photoURL ? `<img src="${data.photoURL}" alt="Foto valoracion" style="max-width:200px;">` : ''}
-        <hr>
-      `;
-
-      reviewsContainer.appendChild(div);
-    });
-
-  } catch (error) {
-    console.error('Error al cargar valoraciones:', error);
-  }
-}
-
-// Cargar valoraciones al iniciar
-loadReviews();
