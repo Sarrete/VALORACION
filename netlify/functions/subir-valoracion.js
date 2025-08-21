@@ -1,61 +1,85 @@
-import { v2 as cloudinary } from 'cloudinary';
-import admin from 'firebase-admin';
+const admin = require("firebase-admin");
+const fetch = require("node-fetch");
+const FormData = require("form-data");
+const busboy = require("busboy");
 
-// Configuración segura de Cloudinary con variables de entorno
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// Configuración segura de Firebase
 if (!admin.apps.length) {
-  const creds = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+  const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
   admin.initializeApp({
-    credential: admin.credential.cert(creds)
+    credential: admin.credential.cert(serviceAccount),
   });
 }
+
 const db = admin.firestore();
 
-export async function handler(event) {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Método no permitido' };
+exports.handler = async (event) => {
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, body: "Método no permitido" };
   }
 
-  try {
-    const { nombre, comentario, estrellas, imageBase64 } = JSON.parse(event.body);
-    let imageUrl = null;
+  return new Promise((resolve) => {
+    const bb = busboy({ headers: event.headers });
+    let nombre, estrellas, comentario, archivoBuffer, archivoNombre;
 
-    // Subida a Cloudinary si hay imagen
-    if (imageBase64) {
-      const uploadRes = await cloudinary.uploader.upload(imageBase64, {
-        folder: 'valoraciones',
-        upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET
-      });
-      imageUrl = uploadRes.secure_url;
-    }
-
-    // Guardar valoración en Firestore
-    await db.collection('valoraciones').add({
-      nombre,
-      comentario,
-      estrellas,
-      imagen: imageUrl,
-      fecha: admin.firestore.FieldValue.serverTimestamp()
+    bb.on("field", (fieldname, val) => {
+      if (fieldname === "nombre") nombre = val;
+      if (fieldname === "estrellas") estrellas = parseInt(val, 10);
+      if (fieldname === "comentario") comentario = val;
     });
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        message: 'Valoración guardada correctamente',
-        url: imageUrl
-      })
-    };
-  } catch (err) {
-    console.error(err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: 'Error al guardar la valoración' })
-    };
-  }
-}
+    bb.on("file", (fieldname, file, info) => {
+      archivoNombre = info.filename;
+      const chunks = [];
+      file.on("data", (d) => chunks.push(d));
+      file.on("end", () => {
+        archivoBuffer = Buffer.concat(chunks);
+      });
+    });
+
+    bb.on("finish", async () => {
+      try {
+        let imagenUrl = null;
+
+        if (archivoBuffer) {
+          const cf = new FormData();
+          cf.append("file", archivoBuffer, archivoNombre);
+          cf.append("upload_preset", process.env.CLOUDINARY_UPLOAD_PRESET);
+
+          const uploadRes = await fetch(
+            `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`,
+            { method: "POST", body: cf }
+          );
+
+          const uploadData = await uploadRes.json();
+          imagenUrl = uploadData.secure_url;
+        }
+
+        const docRef = await db.collection("valoraciones").add({
+          nombre,
+          comentario: comentario || "Sin comentario",
+          estrellas,
+          imagen: imagenUrl,
+          aprobado: false,
+          fecha: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        resolve({
+          statusCode: 200,
+          body: JSON.stringify({
+            id: docRef.id,
+            mensaje: "Valoración guardada con imagen Cloudinary",
+          }),
+        });
+      } catch (error) {
+        console.error("Error en subir-valoracion:", error);
+        resolve({
+          statusCode: 500,
+          body: JSON.stringify({ error: "Error interno del servidor" }),
+        });
+      }
+    });
+
+    const encoding = event.isBase64Encoded ? "base64" : "utf8";
+    bb.end(Buffer.from(event.body, encoding));
+  });
+};
