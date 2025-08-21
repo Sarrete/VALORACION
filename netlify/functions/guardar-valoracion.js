@@ -17,28 +17,34 @@ exports.handler = async (event) => {
       return { statusCode: 405, body: "Método no permitido" };
     }
 
-    const data = JSON.parse(event.body); // Convertir los datos JSON enviados por el frontend
+    const data = JSON.parse(event.body);
 
-    // Validar los datos recibidos
-    if (!data.nombre || !data.comentario || !data.estrellas) {
+    // Validar los datos requeridos (nombre, estrellas obligatorios; comentario opcional)
+    if (!data.nombre || !data.estrellas) {
       return {
         statusCode: 400,
         body: JSON.stringify({ error: "Faltan datos requeridos" }),
       };
     }
 
-    // Guardar la valoración en Firestore
-    const nuevaValoracion = await db.collection("valoraciones").add({
+    // Preparar documento para Firestore
+    const nuevaValoracion = {
       nombre: data.nombre,
-      comentario: data.comentario,
+      comentario: data.comentario || "Sin comentario",
       estrellas: data.estrellas,
-      aprobado: false,  // La valoración necesita ser aprobada antes de ser publicada
+      imagen: data.imagen || null, // URL de Cloudinary si hay
+      aprobado: false, // pendiente de revisión
       fecha: admin.firestore.Timestamp.now(),
-    });
+    };
+
+    const docRef = await db.collection("valoraciones").add(nuevaValoracion);
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ id: nuevaValoracion.id, mensaje: "Valoración guardada correctamente" }),
+      body: JSON.stringify({
+        id: docRef.id,
+        mensaje: "Valoración guardada correctamente",
+      }),
     };
   } catch (error) {
     console.error("Error guardando valoración:", error);
