@@ -1,22 +1,4 @@
-// script.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
-
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Inicializar Firebase ---
-    const firebaseConfig = {
-        apiKey: "AIzaSyBqGTWa97hI7Olw1LqRKlXtKi6Y5yV0Yks",
-        authDomain: "valoracion-web-11af4.firebaseapp.com",
-        projectId: "valoracion-web-11af4",
-        storageBucket: "valoracion-web-11af4.appspot.com",
-        messagingSenderId: "281280264244",
-        appId: "1:281280264244:web:6a07b7c0b61872ecf73261"
-    };
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
-
     // --- Variables del DOM ---
     const stars = document.querySelectorAll('#ratingStars .star');
     const form = document.getElementById('ratingForm');
@@ -40,16 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Input oculto ---
-    const ratingInput = document.createElement('input');
-    ratingInput.type = 'hidden';
-    ratingInput.name = 'rating';
-    ratingInput.value = currentRating;
-    form.appendChild(ratingInput);
-
+    // --- Enviar valoración ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        ratingInput.value = currentRating;
 
         const name = document.getElementById('name').value.trim();
         const comment = document.getElementById('comment').value;
@@ -58,103 +33,42 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!name) return alert('Por favor, ingresa tu nombre.');
         if (currentRating === 0) return alert('Por favor, selecciona una valoración.');
 
-        try {
-            let photoURL = null;
-            if (photoFile) {
-                const photoRef = ref(storage, `valoraciones/${Date.now()}_${photoFile.name}`);
-                const snapshot = await uploadBytes(photoRef, photoFile);
-                photoURL = await getDownloadURL(snapshot.ref);
-            }
+        let imageUrl = null;
 
-            await addDoc(collection(db, 'valoraciones'), {
-                name,
-                rating: currentRating,
-                comment: comment || 'Sin comentario',
-                photoURL: photoURL || null,
-                timestamp: serverTimestamp(),
-                aprobado: false
-            });
-
-            alert('Valoración enviada correctamente. Se revisará antes de publicarla.');
-            form.reset();
-            currentRating = 0;
-            updateStars(0);
-            loadReviews();
-        } catch (err) {
-            console.error(err);
-            alert('Error al enviar la valoración.');
-        }
-    });
-
-    // --- Cargar valoraciones ---
-    async function loadReviews() {
-        reviewsContainer.innerHTML = '';
-        try {
-            const q = query(
-                collection(db, 'valoraciones'),
-                where('aprobado', '==', true),
-                orderBy('timestamp', 'desc')
-            );
-            const snapshot = await getDocs(q);
-
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const div = document.createElement('div');
-                div.classList.add('review');
-                div.innerHTML = `
-                    <h3>${data.name}</h3>
-                    <p class="stars-display">
-                        ${'★'.repeat(data.rating)}${'☆'.repeat(5 - data.rating)}
-                    </p>
-                    <p>${data.comment}</p>
-                    ${data.photoURL ? `<img src="${data.photoURL}" alt="Foto valoración">` : ''}
-                `;
-                reviewsContainer.appendChild(div);
-            });
-        } catch (err) {
-            console.error(err);
-        }
-    }
-
-    // --- Inicio ---
-    loadReviews();
-});ut = document.createElement('input');
-    ratingInput.type = 'hidden';
-    ratingInput.name = 'rating';
-    ratingInput.value = currentRating;
-    form.appendChild(ratingInput);
-
-    // --- Enviar valoración a Netlify + Cloudinary ---
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        ratingInput.value = currentRating;
-
-        const name = document.getElementById('name').value.trim();
-        const comment = document.getElementById('comment').value;
-        const photoFile = document.getElementById('photo').files[0];
-
-        if (!name) return alert('Por favor, ingresa tu nombre.');
-        if (currentRating === 0) return alert('Por favor, selecciona una valoración.');
-
-        let imagenBase64 = null;
+        // 1. Si hay foto, subir a Cloudinary mediante la función serverless
         if (photoFile) {
-            imagenBase64 = await convertirImagenABase64(photoFile);
+            const base64 = await convertirImagenABase64(photoFile);
+            try {
+                const resFoto = await fetch('/.netlify/functions/subir-foto', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageBase64: base64 })
+                });
+                const dataFoto = await resFoto.json();
+                if (!resFoto.ok) throw new Error(dataFoto.message || 'Error al subir imagen');
+                imageUrl = dataFoto.imageUrl;
+            } catch (err) {
+                console.error('Error subiendo imagen:', err);
+                return alert('Error al subir la imagen. Intenta de nuevo.');
+            }
         }
 
+        // 2. Enviar todo a la función que guarda en Firebase
         const payload = {
             nombre: name,
             comentario: comment || 'Sin comentario',
             estrellas: currentRating,
-            imagenBase64,
+            imagen: imageUrl
         };
 
         try {
             const res = await fetch('/.netlify/functions/guardar-valoracion', {
                 method: 'POST',
-                body: JSON.stringify(payload),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
-
             const result = await res.json();
+
             if (res.ok) {
                 alert('Valoración enviada correctamente. Se revisará antes de publicarla.');
                 form.reset();
@@ -162,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateStars(0);
                 loadReviews();
             } else {
-                alert('Error: ' + result.error);
+                alert('Error: ' + (result.message || 'No se pudo guardar'));
             }
         } catch (err) {
             console.error(err);
@@ -183,15 +97,9 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadReviews() {
         reviewsContainer.innerHTML = '';
         try {
-            const q = query(
-                collection(db, 'valoraciones'),
-                where('aprobado', '==', true),
-                orderBy('fecha', 'desc')
-            );
-            const snapshot = await getDocs(q);
-
-            snapshot.forEach(doc => {
-                const data = doc.data();
+            const res = await fetch('/.netlify/functions/listar-valoraciones'); // si tienes endpoint o reemplaza por Firestore client
+            const lista = await res.json();
+            lista.forEach(data => {
                 const div = document.createElement('div');
                 div.classList.add('review');
                 div.innerHTML = `
@@ -209,6 +117,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Inicio ---
     loadReviews();
 });
