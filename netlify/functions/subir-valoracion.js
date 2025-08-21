@@ -1,7 +1,7 @@
 import { v2 as cloudinary } from 'cloudinary';
 import admin from 'firebase-admin';
 
-// Configuración segura de Cloudinary usando variables de entorno
+// Configuración segura de Cloudinary con variables de entorno
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -12,8 +12,7 @@ cloudinary.config({
 if (!admin.apps.length) {
   const creds = JSON.parse(process.env.FIREBASE_CREDENTIALS);
   admin.initializeApp({
-    credential: admin.credential.cert(creds),
-    storageBucket: `${creds.project_id}.appspot.com`
+    credential: admin.credential.cert(creds)
   });
 }
 const db = admin.firestore();
@@ -27,7 +26,7 @@ export async function handler(event) {
     const { nombre, comentario, estrellas, imageBase64 } = JSON.parse(event.body);
     let imageUrl = null;
 
-    // Subir a Cloudinary si hay imagen
+    // Subida a Cloudinary si hay imagen
     if (imageBase64) {
       const uploadRes = await cloudinary.uploader.upload(imageBase64, {
         folder: 'valoraciones',
@@ -36,18 +35,21 @@ export async function handler(event) {
       imageUrl = uploadRes.secure_url;
     }
 
-    // Guardar en Firestore
+    // Guardar valoración en Firestore
     await db.collection('valoraciones').add({
       nombre,
       comentario,
       estrellas,
       imagen: imageUrl,
-      fecha: Date.now()
+      fecha: admin.firestore.FieldValue.serverTimestamp()
     });
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Valoración guardada correctamente' })
+      body: JSON.stringify({
+        message: 'Valoración guardada correctamente',
+        url: imageUrl
+      })
     };
   } catch (err) {
     console.error(err);
