@@ -17,15 +17,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  const convertirABase64 = (file) => new Promise((res, rej) => {
-    const reader = new FileReader();
-    reader.onload = () => res(reader.result);
-    reader.onerror = rej;
-    reader.readAsDataURL(file);
-  });
-
+  // Nuevo flujo: envío directo con FormData
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+
     const nombre = document.getElementById('name').value.trim();
     const comentario = document.getElementById('comment').value.trim() || 'Sin comentario';
     const photoFile = document.getElementById('photo').files[0];
@@ -33,19 +28,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!nombre) return alert('Ingresa tu nombre');
     if (currentRating === 0) return alert('Selecciona una valoración');
 
-    let base64 = null;
-    if (photoFile) base64 = await convertirABase64(photoFile);
+    const formData = new FormData();
+    formData.append('nombre', nombre);
+    formData.append('estrellas', currentRating);
+    formData.append('comentario', comentario);
+    if (photoFile) formData.append('imagen', photoFile);
 
     try {
       const res = await fetch('/.netlify/functions/subir-valoracion', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nombre,
-          comentario,
-          estrellas: currentRating,
-          imageBase64: base64
-        })
+        body: formData
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
@@ -84,3 +76,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadReviews();
 });
+
