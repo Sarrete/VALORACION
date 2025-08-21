@@ -1,10 +1,8 @@
-// script.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
+import { getFirestore, collection, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Inicializar Firebase ---
+    // --- Inicializar Firebase (solo Firestore) ---
     const firebaseConfig = {
         apiKey: "AIzaSyBqGTWa97hI7Olw1LqRKlXtKi6Y5yV0Yks",
         authDomain: "valoracion-web-11af4.firebaseapp.com",
@@ -15,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const storage = getStorage(app);
 
     // --- Variables del DOM ---
     const stars = document.querySelectorAll('#ratingStars .star');
@@ -47,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ratingInput.value = currentRating;
     form.appendChild(ratingInput);
 
+    // --- Enviar valoración a Netlify + Cloudinary ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         ratingInput.value = currentRating;
@@ -58,42 +56,57 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!name) return alert('Por favor, ingresa tu nombre.');
         if (currentRating === 0) return alert('Por favor, selecciona una valoración.');
 
-        try {
-            let photoURL = null;
-            if (photoFile) {
-                const photoRef = ref(storage, `valoraciones/${Date.now()}_${photoFile.name}`);
-                const snapshot = await uploadBytes(photoRef, photoFile);
-                photoURL = await getDownloadURL(snapshot.ref);
-            }
+        let imagenBase64 = null;
+        if (photoFile) {
+            imagenBase64 = await convertirImagenABase64(photoFile);
+        }
 
-            await addDoc(collection(db, 'valoraciones'), {
-                name,
-                rating: currentRating,
-                comment: comment || 'Sin comentario',
-                photoURL: photoURL || null,
-                timestamp: serverTimestamp(),
-                aprobado: false
+        const payload = {
+            nombre: name,
+            comentario: comment || 'Sin comentario',
+            estrellas: currentRating,
+            imagenBase64,
+        };
+
+        try {
+            const res = await fetch('/.netlify/functions/guardar-valoracion', {
+                method: 'POST',
+                body: JSON.stringify(payload),
             });
 
-            alert('Valoración enviada correctamente. Se revisará antes de publicarla.');
-            form.reset();
-            currentRating = 0;
-            updateStars(0);
-            loadReviews();
+            const result = await res.json();
+            if (res.ok) {
+                alert('Valoración enviada correctamente. Se revisará antes de publicarla.');
+                form.reset();
+                currentRating = 0;
+                updateStars(0);
+                loadReviews();
+            } else {
+                alert('Error: ' + result.error);
+            }
         } catch (err) {
             console.error(err);
             alert('Error al enviar la valoración.');
         }
     });
 
-    // --- Cargar valoraciones ---
+    function convertirImagenABase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // --- Cargar valoraciones aprobadas ---
     async function loadReviews() {
         reviewsContainer.innerHTML = '';
         try {
             const q = query(
                 collection(db, 'valoraciones'),
                 where('aprobado', '==', true),
-                orderBy('timestamp', 'desc')
+                orderBy('fecha', 'desc')
             );
             const snapshot = await getDocs(q);
 
@@ -102,12 +115,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const div = document.createElement('div');
                 div.classList.add('review');
                 div.innerHTML = `
-                    <h3>${data.name}</h3>
+                    <h3>${data.nombre}</h3>
                     <p class="stars-display">
-                        ${'★'.repeat(data.rating)}${'☆'.repeat(5 - data.rating)}
+                        ${'★'.repeat(data.estrellas)}${'☆'.repeat(5 - data.estrellas)}
                     </p>
-                    <p>${data.comment}</p>
-                    ${data.photoURL ? `<img src="${data.photoURL}" alt="Foto valoración">` : ''}
+                    <p>${data.comentario}</p>
+                    ${data.imagen ? `<img src="${data.imagen}" alt="Foto valoración">` : ''}
                 `;
                 reviewsContainer.appendChild(div);
             });
